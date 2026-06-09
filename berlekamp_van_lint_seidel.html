@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfect Residue — Berlekamp–van Lint–Seidel Graph</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container { display: flex; min-height: 100vh; padding: 20px; gap: 20px; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section { margin-bottom: 32px; }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button { margin-bottom: 0; }
+
+        /* Parameter Controls */
+        .control-group { margin-bottom: 20px; }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container { display: flex; align-items: center; gap: 12px; }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        select.layout-select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--anthropic-light-gray);
+            background: var(--anthropic-light);
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            color: var(--anthropic-dark);
+            cursor: pointer;
+        }
+
+        select.layout-select:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+        }
+
+        /* Color Pickers */
+        .color-group { margin-bottom: 16px; }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container { display: flex; align-items: center; gap: 8px; }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover { background: #c86641; transform: translateY(-1px); }
+        .button:active { transform: translateY(0); }
+        .button.secondary { background: var(--anthropic-blue); }
+        .button.secondary:hover { background: #5a8bb8; }
+        .button.tertiary { background: var(--anthropic-green); }
+        .button.tertiary:hover { background: #6b7b52; }
+
+        .button-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .button-row .button { flex: 1; }
+
+        .factsheet {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--anthropic-mid-gray);
+            background: var(--anthropic-light);
+            border: 1px solid var(--anthropic-light-gray);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .factsheet b { color: var(--anthropic-dark); font-weight: 600; }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+            padding: 60px 0;
+        }
+
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .canvas-area { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <h1>Perfect Residue</h1>
+            <div class="subtitle">The Berlekamp–van Lint–Seidel graph — SRG(243,&nbsp;22,&nbsp;1,&nbsp;2) — built live from the perfect ternary Golay code. Each thread is colored by the Golay coordinate that begat it.</div>
+
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="243" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Projection</label>
+                    <select class="layout-select" id="layout" onchange="updateLayout(this.value)">
+                        <option value="chord" selected>Chord — circle of cosets</option>
+                        <option value="shells">Shells — trit-weight rings</option>
+                        <option value="strata">Strata — digit-sum lantern</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Thread Opacity</label>
+                    <div class="slider-container">
+                        <input type="range" id="edgeAlpha" min="4" max="60" step="1" value="22" oninput="updateParam('edgeAlpha', this.value)">
+                        <span class="value-display" id="edgeAlpha-value">22</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Bundling Pull</label>
+                    <div class="slider-container">
+                        <input type="range" id="bundling" min="0" max="0.9" step="0.01" value="0.42" oninput="updateParam('bundling', this.value)">
+                        <span class="value-display" id="bundling-value">0.42</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Sediment Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="revealSpeed" min="3" max="120" step="1" value="28" oninput="updateParam('revealSpeed', this.value)">
+                        <span class="value-display" id="revealSpeed-value">28</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Precession</label>
+                    <div class="slider-container">
+                        <input type="range" id="rotationSpeed" min="0" max="0.01" step="0.0005" value="0.001" oninput="updateParam('rotationSpeed', this.value)">
+                        <span class="value-display" id="rotationSpeed-value">0.001</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Radial Jitter</label>
+                    <div class="slider-container">
+                        <input type="range" id="jitter" min="0" max="1" step="0.01" value="0.18" oninput="updateParam('jitter', this.value)">
+                        <span class="value-display" id="jitter-value">0.18</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Node Size</label>
+                    <div class="slider-container">
+                        <input type="range" id="nodeSize" min="0" max="8" step="0.5" value="3">
+                        <span class="value-display" id="nodeSize-value">3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section -->
+            <div class="control-section">
+                <h3>Colors</h3>
+                <div class="color-group">
+                    <label>Coordinate 0 hue</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#5ec8e5" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#5ec8e5</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Coordinate 5 hue</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#c084fc" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#c084fc</span>
+                    </div>
+                </div>
+                <div class="color-group">
+                    <label>Coordinate 10 hue</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#f4a261" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#f4a261</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="regenerate()">Regenerate</button>
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+                <button class="button secondary" onclick="downloadPNG()">Download PNG</button>
+            </div>
+
+            <div class="control-section">
+                <h3>The Object</h3>
+                <div class="factsheet">
+                    <b>243</b> vertices = cosets of the [11,6,5]₃ Golay code ≅ ℤ₃⁵<br>
+                    <b>22</b> neighbors each (11 positions × 2 symbols)<br>
+                    <b>λ = 1</b>: every edge in exactly one triangle<br>
+                    <b>μ = 2</b>: every non-edge bridged twice<br>
+                    Spectrum <b>22¹ 4¹³² (−5)¹¹⁰</b><br>
+                    Diameter 2: any vertex sees 22 neighbors and 220 others, none farther. Since λ&nbsp;=&nbsp;1, every neighborhood is a perfect matching — 11 disjoint edges, one per Golay coordinate.
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Factoring x¹¹ − 1 over GF(3)…</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════
+        let params = {
+            seed: 243,
+            layout: 'chord',
+            edgeAlpha: 22,
+            bundling: 0.42,
+            revealSpeed: 28,
+            rotationSpeed: 0.001,
+            jitter: 0.18,
+            nodeSize: 3,
+            colorPalette: ['#5ec8e5', '#c084fc', '#f4a261']
+        };
+        let defaultParams = JSON.parse(JSON.stringify(params));
+
+        // ═══════════════════════════════════════════════════════════════════
+        // THE GRAPH — honest construction from the ternary Golay code
+        // g(x) = 2 + 2x + x² + 2x³ + x⁵ divides x¹¹ − 1 over GF(3).
+        // Cosets of the [11,6,5]₃ code ↔ syndromes in F₃⁵ ≅ ℤ₃⁵.
+        // Two cosets adjacent ⇔ they differ by a weight-1 word, i.e. the
+        // Cayley graph on ℤ₃⁵ with connection set = syndromes of the 22
+        // weight-1 vectors. Verified: SRG(243, 22, 1, 2).
+        // ═══════════════════════════════════════════════════════════════════
+        const N = 243;
+
+        // GF(3) polynomial division helpers — derive the connection set live.
+        function buildConnectionSet() {
+            const g = [2, 2, 1, 2, 0, 1];           // generator polynomial coeffs (const first)
+            // Generator matrix: 6 cyclic shifts of g, length 11
+            let G = [];
+            for (let i = 0; i < 6; i++) {
+                let row = new Array(11).fill(0);
+                for (let j = 0; j < 6; j++) row[i + j] = g[j];
+                G.push(row);
+            }
+            // Row reduce to [I6 | A] over GF(3)
+            let r = 0;
+            for (let c = 0; c < 11 && r < 6; c++) {
+                let piv = -1;
+                for (let i = r; i < 6; i++) if (G[i][c] % 3 !== 0) { piv = i; break; }
+                if (piv < 0) continue;
+                [G[r], G[piv]] = [G[piv], G[r]];
+                const inv = (G[r][c] % 3 === 1) ? 1 : 2;
+                G[r] = G[r].map(x => (x * inv) % 3);
+                for (let i = 0; i < 6; i++) {
+                    if (i !== r && G[i][c] % 3) {
+                        const f = G[i][c] % 3;
+                        for (let j = 0; j < 11; j++) G[i][j] = ((G[i][j] - f * G[r][j]) % 3 + 3) % 3;
+                    }
+                }
+                r++;
+            }
+            // Parity check H = [−Aᵀ | I5]  (5 × 11)
+            const H = [];
+            for (let i = 0; i < 5; i++) {
+                const row = new Array(11).fill(0);
+                for (let j = 0; j < 6; j++) row[j] = (3 - G[j][6 + i]) % 3;
+                row[6 + i] = 1;
+                H.push(row);
+            }
+            // Syndromes of the 22 weight-1 words; remember source coordinate
+            const gens = [];        // {idx, cls}
+            for (let pos = 0; pos < 11; pos++) {
+                for (let c = 1; c <= 2; c++) {
+                    let idx = 0;
+                    for (let i = 0; i < 5; i++) idx = idx * 3 + (c * H[i][pos]) % 3;
+                    gens.push({ idx: idx, cls: pos });
+                }
+            }
+            return gens;
+        }
+
+        const GENS = buildConnectionSet();          // 22 generators of the Cayley graph
+
+        // Trit decompositions of ℤ₃⁵
+        const TRITS = [];
+        for (let v = 0; v < N; v++) {
+            let t = [], x = v;
+            for (let i = 0; i < 5; i++) { t.unshift(x % 3); x = Math.floor(x / 3); }
+            TRITS.push(t);
+        }
+        function addZ35(a, b) {
+            const ta = TRITS[a], tb = TRITS[b];
+            let idx = 0;
+            for (let i = 0; i < 5; i++) idx = idx * 3 + (ta[i] + tb[i]) % 3;
+            return idx;
+        }
+
+        // Edge list: 243 × 22 / 2 = 2673 edges, each tagged with Golay coordinate
+        const EDGES = [];
+        for (let v = 0; v < N; v++) {
+            for (const g of GENS) {
+                const w = addZ35(v, g.idx);
+                if (w > v) EDGES.push({ a: v, b: w, cls: g.cls });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SEEDED PROJECTION — automorphic masks
+        // ═══════════════════════════════════════════════════════════════════
+        let order = [];      // vertex -> rank 0..242 (seeded relabeling of ℤ₃⁵)
+        let jit = [];        // per-vertex jitter offsets
+        let drawOrder = [];  // seeded shuffle of edges (sedimentation order)
+        let revealed = 0;
+        let theta = 0;       // precession angle
+        let palette11 = [];  // 11 hues, one per Golay coordinate
+
+        function shuffled(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function rebuildProjection() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            // Mask: permute the 5 coordinates and relabel the 3 symbols per coordinate
+            const coordPerm = shuffled([0, 1, 2, 3, 4]);
+            const digitMaps = [];
+            for (let i = 0; i < 5; i++) digitMaps.push(shuffled([0, 1, 2]));
+
+            order = new Array(N);
+            for (let v = 0; v < N; v++) {
+                let key = 0;
+                for (let i = 0; i < 5; i++) key = key * 3 + digitMaps[i][TRITS[v][coordPerm[i]]];
+                order[v] = key;
+            }
+
+            jit = [];
+            for (let v = 0; v < N; v++) jit.push(random(-1, 1));
+
+            drawOrder = shuffled(EDGES);
+            revealed = 0;
+            theta = random(0, Math.PI * 2);
+            buildPalette();
+        }
+
+        function buildPalette() {
+            const stops = params.colorPalette.map(h => color(h));
+            palette11 = [];
+            for (let k = 0; k < 11; k++) {
+                const t = k / 10;
+                let c;
+                if (t <= 0.5) c = lerpColor(stops[0], stops[1], t * 2);
+                else c = lerpColor(stops[1], stops[2], (t - 0.5) * 2);
+                palette11.push(c);
+            }
+        }
+
+        // Vertex positions for the current projection (recomputed each frame:
+        // cheap, and lets precession breathe)
+        function vertexPos(v, cx, cy, R) {
+            const rank = order[v];
+            if (params.layout === 'chord') {
+                const ang = theta + (rank / N) * Math.PI * 2;
+                const rr = R * (1 + jit[v] * params.jitter * 0.06);
+                return [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
+            }
+            if (params.layout === 'shells') {
+                // rings by trit-weight: sizes 1,10,40,80,80,32
+                const w = TRITS[v].reduce((s, t) => s + (t !== 0 ? 1 : 0), 0);
+                if (w === 0) return [cx, cy];
+                const ringR = R * (w / 5) * (1 + jit[v] * params.jitter * 0.05);
+                const ringRank = shellRank[v], ringCount = shellCount[w];
+                const ang = theta * (w % 2 === 0 ? 1 : -1) + (ringRank / ringCount) * Math.PI * 2;
+                return [cx + ringR * Math.cos(ang), cy + ringR * Math.sin(ang)];
+            }
+            // strata: 11 rows by digit sum 0..10
+            const s = TRITS[v].reduce((a, t) => a + t, 0);
+            const rowRank = strataRank[v], rowCount = strataCount[s];
+            const maxC = 51;
+            const halfW = R * 0.98 * Math.sqrt(rowCount / maxC);
+            const x = rowCount === 1 ? cx
+                : cx - halfW + (rowRank / (rowCount - 1)) * 2 * halfW;
+            const y = cy - R * 0.92 + (s / 10) * R * 1.84
+                + jit[v] * params.jitter * R * 0.03;
+            return [x, y];
+        }
+
+        // Precompute shell / strata ranks (depend on `order`, so refreshed after rebuild)
+        let shellRank = [], shellCount = [], strataRank = [], strataCount = [];
+        function rebuildRanks() {
+            shellCount = new Array(6).fill(0);
+            strataCount = new Array(11).fill(0);
+            const byShell = [[], [], [], [], [], []];
+            const byRow = Array.from({ length: 11 }, () => []);
+            for (let v = 0; v < N; v++) {
+                const w = TRITS[v].reduce((s, t) => s + (t !== 0 ? 1 : 0), 0);
+                const s = TRITS[v].reduce((a, t) => a + t, 0);
+                byShell[w].push(v);
+                byRow[s].push(v);
+            }
+            shellRank = new Array(N); strataRank = new Array(N);
+            for (let w = 0; w < 6; w++) {
+                byShell[w].sort((a, b) => order[a] - order[b]);
+                shellCount[w] = byShell[w].length;
+                byShell[w].forEach((v, i) => shellRank[v] = i);
+            }
+            for (let s = 0; s < 11; s++) {
+                byRow[s].sort((a, b) => order[a] - order[b]);
+                strataCount[s] = byRow[s].length;
+                byRow[s].forEach((v, i) => strataRank[v] = i);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // P5 LIFECYCLE
+        // ═══════════════════════════════════════════════════════════════════
+        function setup() {
+            const canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            const load = document.querySelector('.loading');
+            if (load) load.style.display = 'none';
+        }
+
+        function initializeSystem() {
+            rebuildProjection();
+            rebuildRanks();
+        }
+
+        function draw() {
+            theta += params.rotationSpeed;
+            revealed = Math.min(EDGES.length, revealed + params.revealSpeed);
+
+            // Deep-ink ground with a faint radial glow
+            background(13, 14, 22);
+            noFill();
+            for (let i = 0; i < 5; i++) {
+                stroke(30, 32, 50, 16 - i * 3);
+                strokeWeight(1);
+                circle(width / 2, height / 2, (0.5 + i * 0.16) * width);
+            }
+
+            const cx = width / 2, cy = height / 2;
+            const R = width * 0.44;
+
+            // Cache positions once per frame
+            const pos = new Array(N);
+            for (let v = 0; v < N; v++) pos[v] = vertexPos(v, cx, cy, R);
+
+            // Threads — quadratic curves pulled toward the center
+            strokeWeight(0.7);
+            noFill();
+            const pull = params.bundling;
+            for (let e = 0; e < revealed; e++) {
+                const ed = drawOrder[e];
+                const [x1, y1] = pos[ed.a];
+                const [x2, y2] = pos[ed.b];
+                const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+                let tx = cx, ty = cy;
+                if (params.layout === 'strata') { tx = cx; ty = my; }
+                const qx = mx + (tx - mx) * pull;
+                const qy = my + (ty - my) * pull;
+                const c = palette11[ed.cls];
+                stroke(red(c), green(c), blue(c), params.edgeAlpha);
+                beginShape();
+                vertex(x1, y1);
+                quadraticVertex(qx, qy, x2, y2);
+                endShape();
+            }
+
+            // Residues — the 243 cosets
+            const ns = parseFloat(params.nodeSize);
+            if (ns > 0) {
+                noStroke();
+                for (let v = 0; v < N; v++) {
+                    const [x, y] = pos[v];
+                    fill(244, 241, 232, 60);
+                    circle(x, y, ns * 2.2);
+                    fill(250, 249, 245, 220);
+                    circle(x, y, ns);
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // UI HANDLERS
+        // ═══════════════════════════════════════════════════════════════════
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            const disp = document.getElementById(name + '-value');
+            if (disp) disp.textContent = value;
+            if (name === 'revealSpeed') return;      // no restart needed
+        }
+
+        // node size is purely cosmetic, live-updates without restart
+        document.addEventListener('input', function (e) {
+            if (e.target && e.target.id === 'nodeSize') {
+                params.nodeSize = parseFloat(e.target.value);
+                document.getElementById('nodeSize-value').textContent = e.target.value;
+            }
+        });
+
+        function updateLayout(value) {
+            params.layout = value;
+            revealed = 0;     // re-sediment in the new projection
+        }
+
+        function updateColor(id, value) {
+            const i = { color1: 0, color2: 1, color3: 2 }[id];
+            params.colorPalette[i] = value;
+            document.getElementById(id + '-value').textContent = value;
+            buildPalette();
+        }
+
+        function regenerate() {
+            initializeSystem();
+        }
+
+        function downloadPNG() {
+            saveCanvas('perfect-residue-seed-' + params.seed, 'png');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SEED CONTROLS
+        // ═══════════════════════════════════════════════════════════════════
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            const v = parseInt(document.getElementById('seed-input').value);
+            if (v && v > 0) { params.seed = v; initializeSystem(); }
+            else updateSeedDisplay();
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay(); initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay(); initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay(); initializeSystem();
+        }
+
+        function resetParameters() {
+            params = JSON.parse(JSON.stringify(defaultParams));
+            ['edgeAlpha', 'bundling', 'revealSpeed', 'rotationSpeed', 'jitter', 'nodeSize'].forEach(k => {
+                document.getElementById(k).value = params[k];
+                document.getElementById(k + '-value').textContent = params[k];
+            });
+            document.getElementById('layout').value = params.layout;
+            ['color1', 'color2', 'color3'].forEach((id, i) => {
+                document.getElementById(id).value = params.colorPalette[i];
+                document.getElementById(id + '-value').textContent = params.colorPalette[i];
+            });
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', updateSeedDisplay);
+    </script>
+</body>
+</html>
